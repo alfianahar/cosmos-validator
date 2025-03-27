@@ -1,0 +1,355 @@
+{
+  "info": {
+    "_postman_id": "8c673687-83b6-4c95-a163-0be059faa609",
+    "name": "Cosmos Validator Tracker API",
+    "description": "Collection of API endpoints for the Cosmos Validator Delegation Tracking System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+    "_exporter_id": "14669035"
+  },
+  "item": [
+    {
+      "name": "Delegation",
+      "item": [
+        {
+          "name": "Get Hourly Delegations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/validators/{{validatorAddress}}/delegations/hourly?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "v1",
+                "validators",
+                "{{validatorAddress}}",
+                "delegations",
+                "hourly"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of items per page (max 100)"
+                }
+              ]
+            },
+            "description": "Retrieves hourly delegation changes for a specific validator with pagination"
+          },
+          "response": [
+            {
+              "name": "Successful Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"data\": [\n    {\n      \"id\": 1,\n      \"validator_address\": \"cosmosvaloper18ruzecmqj9pv8ac0gvkgryuc7u004te9rh7w5s\",\n      \"delegator_address\": \"cosmos1abcdef123456789\",\n      \"delegation_amount\": 500000000,\n      \"change_amount\": 5000000,\n      \"shares\": 482546.234,\n      \"timestamp\": \"2024-03-24T15:30:45Z\"\n    },\n    {\n      \"id\": 2,\n      \"validator_address\": \"cosmosvaloper18ruzecmqj9pv8ac0gvkgryuc7u004te9rh7w5s\",\n      \"delegator_address\": \"cosmos1abcdef123456789\",\n      \"delegation_amount\": 495000000,\n      \"change_amount\": -5000000,\n      \"shares\": 477631.234,\n      \"timestamp\": \"2024-03-24T14:30:45Z\"\n    }\n  ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"per_page\": 10,\n    \"total_pages\": 1,\n    \"total_data\": 2\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Daily Delegations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/validators/{{validatorAddress}}/delegations/daily?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "v1",
+                "validators",
+                "{{validatorAddress}}",
+                "delegations",
+                "daily"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of items per page (max 100)"
+                }
+              ]
+            },
+            "description": "Retrieves daily aggregated delegation data for a specific validator with pagination"
+          },
+          "response": [
+            {
+              "name": "Successful Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    {\n      \"id\": 1,\n      \"validator_address\": \"cosmosvaloper18ruzecmqj9pv8ac0gvkgryuc7u004te9rh7w5s\",\n      \"delegator_address\": \"cosmos1abcdef123456789\",\n      \"total_delegation\": 500000000,\n      \"date\": \"2024-03-24T00:00:00Z\"\n    },\n    {\n      \"id\": 2,\n      \"validator_address\": \"cosmosvaloper18ruzecmqj9pv8ac0gvkgryuc7u004te9rh7w5s\",\n      \"delegator_address\": \"cosmos1abcdef123456789\",\n      \"total_delegation\": 495000000,\n      \"date\": \"2024-03-23T00:00:00Z\"\n    }\n  ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"per_page\": 10,\n    \"total_pages\": 1,\n    \"total_data\": 2\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Delegator History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/validators/{{validatorAddress}}/delegator/{{delegatorAddress}}/history?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "v1",
+                "validators",
+                "{{validatorAddress}}",
+                "delegator",
+                "{{delegatorAddress}}",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of items per page (max 100)"
+                }
+              ]
+            },
+            "description": "Retrieves the delegation history for a specific delegator-validator pair with pagination"
+          },
+          "response": [
+            {
+              "name": "Successful Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    {\n      \"id\": 1,\n      \"validator_address\": \"cosmosvaloper18ruzecmqj9pv8ac0gvkgryuc7u004te9rh7w5s\",\n      \"delegator_address\": \"cosmos1abcdef123456789\",\n      \"delegation_amount\": 500000000,\n      \"change_amount\": 5000000,\n      \"timestamp\": \"2024-03-24T15:30:45Z\"\n    },\n    {\n      \"id\": 2,\n      \"validator_address\": \"cosmosvaloper18ruzecmqj9pv8ac0gvkgryuc7u004te9rh7w5s\",\n      \"delegator_address\": \"cosmos1abcdef123456789\",\n      \"delegation_amount\": 495000000,\n      \"change_amount\": -5000000,\n      \"timestamp\": \"2024-03-24T14:30:45Z\"\n    }\n  ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"per_page\": 10,\n    \"total_pages\": 1,\n    \"total_data\": 2\n  }\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Endpoints related to delegation data retrieval"
+    },
+    {
+      "name": "Watchlist",
+      "item": [
+        {
+          "name": "Get Watchlist",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/watchlist",
+            "description": "Retrieves all validator-delegator pairs that are being tracked"
+          },
+          "response": [
+            {
+              "name": "Successful Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "[\n    {\n        \"id\": 1,\n        \"validator_name\": \"Binance Node\",\n        \"validator_address\": \"cosmosvaloper18ruzecmqj9pv8ac0gvkgryuc7u004te9rh7w5s\",\n        \"delegator_address\": \"cosmos1abcdef123456789\"\n    },\n    {\n        \"id\": 2,\n        \"validator_name\": \"Binance Node\",\n        \"validator_address\": \"cosmosvaloper18ruzecmqj9pv8ac0gvkgryuc7u004te9rh7w5s\",\n        \"delegator_address\": \"cosmos1ghijkl987654321\"\n    }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Add to Watchlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"validator_name\": \"Binance Node\",\n  \"validator_address\": \"cosmosvaloper18ruzecmqj9pv8ac0gvkgryuc7u004te9rh7w5s\",\n  \"delegator_address\": \"cosmos1abcdef123456789\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/watchlist",
+            "description": "Adds a new validator-delegator pair to the watchlist for tracking"
+          },
+          "response": [
+            {
+              "name": "Successful Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"validator_address\": \"cosmosvaloper18ruzecmqj9pv8ac0gvkgryuc7u004te9rh7w5s\",\n  \"delegator_address\": \"cosmos1abcdef123456789\"\n}"
+                },
+                "url": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Added to watchlist\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Remove from Watchlist",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/watchlist/{{watchlistId}}",
+            "description": "Removes a validator-delegator pair from the watchlist"
+          },
+          "response": [
+            {
+              "name": "Successful Response",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Removed from watchlist\"\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Endpoints for managing the validator-delegator watchlist"
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "System Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/health",
+            "description": "Provides a comprehensive overview of system component health status"
+          },
+          "response": [
+            {
+              "name": "Successful Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"status\": \"operational\",\n  \"timestamp\": \"2024-03-24T15:45:30Z\",\n  \"components\": {\n    \"database\": \"ok\",\n    \"cosmos_api\": \"ok\"\n  },\n  \"stats\": {\n    \"watchlist_entries\": 2,\n    \"delegations_recorded\": 156\n  },\n  \"version\": \"1.0.0\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Data Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/health/data",
+            "description": "Checks the freshness and availability of data"
+          },
+          "response": [
+            {
+              "name": "Successful Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"status\": \"ok\",\n  \"data_freshness\": \"45m32s\",\n  \"statistics\": {\n    \"hourly_records\": 156,\n    \"daily_records\": 8\n  }\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Health check endpoints for monitoring system status"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "validatorAddress",
+      "value": "cosmosvaloper18ruzecmqj9pv8ac0gvkgryuc7u004te9rh7w5s",
+      "type": "string"
+    },
+    {
+      "key": "delegatorAddress",
+      "value": "cosmos1abcdef123456789",
+      "type": "string"
+    },
+    {
+      "key": "watchlistId",
+      "value": "1",
+      "type": "string"
+    }
+  ]
+}
