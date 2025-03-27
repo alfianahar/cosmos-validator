@@ -1,0 +1,33 @@
+package api
+
+import (
+	"cosmos-tracker/internal/api/handlers"
+	"os"
+
+	"github.com/gin-gonic/gin"
+)
+
+func SetupRouter() *gin.Engine {
+	debug := os.Getenv("DEBUG")
+	if debug == "true" {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	r := gin.Default()
+
+	api := r.Group("/api/v1")
+	{
+		api.GET("/validators/:validator/delegations/hourly", handlers.GetHourlyDelegations)
+		api.GET("/validators/:validator/delegations/daily", handlers.GetDailyDelegations)
+		api.GET("/validators/:validator/delegator/:delegator/history", handlers.GetDelegatorHistory)
+
+		api.POST("/watchlist", handlers.AddToWatchlist)
+		api.GET("/watchlist", handlers.GetWatchlist)
+		api.DELETE("/watchlist/:id", handlers.RemoveFromWatchlist)
+
+	}
+
+	return r
+}
