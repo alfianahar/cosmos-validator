@@ -65,13 +65,13 @@ func GetDailyDelegations(c *gin.Context) {
 	totalPages := (total + int64(limit) - 1) / int64(limit)
 
 	response := dto.DelegationResponse{
-		Data: data,
 		Pagination: dto.Pagination{
 			Page:       page,
 			PerPage:    limit,
 			TotalPages: int(totalPages),
 			TotalData:  int(total),
 		},
+		Data: data,
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -92,13 +92,13 @@ func GetDelegatorHistory(c *gin.Context) {
 	totalPages := (total + int64(limit) - 1) / int64(limit)
 
 	response := dto.DelegationResponse{
-		Data: data,
 		Pagination: dto.Pagination{
 			Page:       page,
 			PerPage:    limit,
 			TotalPages: int(totalPages),
 			TotalData:  int(total),
 		},
+		Data: data,
 	}
 
 	c.JSON(http.StatusOK, response)

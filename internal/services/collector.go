@@ -39,15 +39,23 @@ const (
 	MaxRetryDelayMs  = 30000 // Maximum 30 second delay
 )
 
-// API response structure
+// API response structure matching the actual Cosmos API format
 type DelegationResponse struct {
 	Delegations []struct {
-		Delegator string `json:"delegator_address"`
-		Amount    struct {
+		Delegation struct {
+			DelegatorAddress string `json:"delegator_address"`
+			ValidatorAddress string `json:"validator_address"`
+			Shares           string `json:"shares"`
+		} `json:"delegation"`
+		Balance struct {
 			Denom  string `json:"denom"`
 			Amount string `json:"amount"`
 		} `json:"balance"`
 	} `json:"delegation_responses"`
+	Pagination struct {
+		NextKey string `json:"next_key"`
+		Total   string `json:"total"`
+	} `json:"pagination,omitempty"`
 }
 
 // retrieves delegation information from the Cosmos API
@@ -70,10 +78,11 @@ func FetchDelegationData() {
 
 	// Process each watchlist entry
 	for _, entry := range watchlist {
-		log.Printf("🔍 Fetching delegations for %s -> %s", entry.ValidatorAddress, entry.DelegatorAddress)
+		log.Printf("🔍 Fetching delegations for %s -> %s", entry.ValidatorAddress, entry.ValidatorName)
 
-		url := fmt.Sprintf("https://api.cosmos.network/cosmos/staking/v1beta1/validators/%s/delegations/%s",
-			entry.ValidatorAddress, entry.DelegatorAddress)
+		// Updated URL to use Polkachu API endpoint
+		url := fmt.Sprintf("https://cosmos-api.polkachu.com/cosmos/staking/v1beta1/validators/%s/delegations",
+			entry.ValidatorAddress)
 
 		// Use retry mechanism
 		resp, err := fetchWithAdvancedRetry(url, MaxRetries)
@@ -101,7 +110,7 @@ func FetchDelegationData() {
 
 		successCount++
 		log.Printf("✅ Delegation data successfully updated for %s -> %s",
-			entry.ValidatorAddress, entry.DelegatorAddress)
+			entry.ValidatorAddress, entry.ValidatorName)
 	}
 
 	// Log collection summary
@@ -116,16 +125,35 @@ func processEntryData(entry dto.WatchlistEntry, result DelegationResponse, valid
 	return db.WithTransaction(func(tx *gorm.DB) error {
 		// Process each delegation record
 		for _, delegation := range result.Delegations {
-			delegationAmount, err := strconv.ParseInt(delegation.Amount.Amount, 10, 64)
+			// Extract delegator address from the nested delegation object
+			delegatorAddress := delegation.Delegation.DelegatorAddress
+
+			// Skip if zero amount to avoid noise in the data
+			delegationAmount, err := strconv.ParseInt(delegation.Balance.Amount, 10, 64)
 			if err != nil {
-				log.Printf("❌ Error parsing delegation amount '%s': %v", delegation.Amount.Amount, err)
+				log.Printf("❌ Error parsing delegation amount '%s': %v", delegation.Balance.Amount, err)
 				continue
 			}
+
+			// Parse shares for additional data (can be used for future analytics)
+			var sharesFloat float64
+			if delegation.Delegation.Shares != "" {
+				sharesFloat, err = strconv.ParseFloat(delegation.Delegation.Shares, 64)
+				if err != nil {
+					log.Printf("⚠️ Error parsing shares value '%s': %v", delegation.Delegation.Shares, err)
+					// Continue anyway since this is optional data
+				}
+			}
+
+			// Skip zero-amount delegations if desired (can be configurable)
+			// if delegationAmount == 0 {
+			//    continue
+			// }
 
 			// Fetch the last recorded amount to calculate the change
 			var lastRecord models.HourlyDelegation
 			if err := tx.Where("validator_address = ? AND delegator_address = ?",
-				validatorAddress, delegation.Delegator).
+				validatorAddress, delegatorAddress).
 				Order("timestamp DESC").
 				First(&lastRecord).Error; err != nil && err.Error() != "record not found" {
 				return err
@@ -139,10 +167,10 @@ func processEntryData(entry dto.WatchlistEntry, result DelegationResponse, valid
 
 			// Find associated watchlist entry for foreign key
 			var watchlistItem models.Watchlist
-			if err := tx.Where("validator_address = ? AND delegator_address = ?",
-				validatorAddress, delegation.Delegator).First(&watchlistItem).Error; err != nil {
+			if err := tx.Where("validator_address = ?",
+				validatorAddress).First(&watchlistItem).Error; err != nil {
 				log.Printf("⚠️ Warning: No watchlist entry found for %s -> %s",
-					validatorAddress, delegation.Delegator)
+					validatorAddress, delegatorAddress)
 				continue
 			}
 
@@ -150,14 +178,22 @@ func processEntryData(entry dto.WatchlistEntry, result DelegationResponse, valid
 			entry := models.HourlyDelegation{
 				WatchlistID:      watchlistItem.ID,
 				ValidatorAddress: validatorAddress,
-				DelegatorAddress: delegation.Delegator,
+				DelegatorAddress: delegatorAddress,
 				DelegationAmount: delegationAmount,
 				ChangeAmount:     changeAmount,
+				Shares:           sharesFloat, // Store the parsed shares value
 				Timestamp:        time.Now(),
 			}
 
 			if err := tx.Create(&entry).Error; err != nil {
 				return err
+			}
+
+			// Log significant delegation changes for monitoring
+			if lastRecord.ID != 0 && math.Abs(float64(changeAmount)) > float64(delegationAmount)*0.05 {
+				log.Printf("📈 Significant delegation change: %s -> %s changed by %d (%.2f%%)",
+					validatorAddress, delegatorAddress, changeAmount,
+					float64(changeAmount)*100/float64(lastRecord.DelegationAmount))
 			}
 		}
 		return nil
@@ -238,7 +274,8 @@ func IsHealthy() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.cosmos.network/node_info", nil)
+	// Updated URL for health check to match new API provider
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://cosmos-api.polkachu.com/cosmos/base/tendermint/v1beta1/node_info", nil)
 	if err != nil {
 		return false
 	}

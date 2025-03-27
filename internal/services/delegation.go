@@ -143,92 +143,134 @@ func AggregateDailyDelegations() error {
 		return err
 	}
 
+	log.Printf("Found %d watchlist items to process", len(watchlistItems))
+
 	tx := db.DB.Begin()
 	if tx.Error != nil {
 		return tx.Error
 	}
 
 	for _, watchlist := range watchlistItems {
-		// Get the latest delegation amount for each validator-delegator pair for yesterday
-		var latestDelegation models.HourlyDelegation
-		subQuery := tx.Model(&models.HourlyDelegation{}).
-			Where("watchlist_id = ? AND timestamp >= ? AND timestamp < ?",
-				watchlist.ID, yesterday, yesterday.AddDate(0, 0, 1)).
-			Order("timestamp DESC").
-			Limit(1)
-
-		if err := subQuery.First(&latestDelegation).Error; err != nil {
-			if err.Error() != "record not found" {
-				tx.Rollback()
-				return err
-			}
-			continue // No data for yesterday
-		}
-
-		// Check if daily record already exists
-		var existingDaily models.DailyDelegation
-		err := tx.Where("watchlist_id = ? AND date = ?", watchlist.ID, yesterday).
-			First(&existingDaily).Error
-
-		if err != nil && err.Error() != "record not found" {
+		// Get all unique delegator addresses for this validator
+		var delegatorAddresses []string
+		if err := tx.Model(&models.HourlyDelegation{}).
+			Where("validator_address = ? AND timestamp >= ? AND timestamp < ?",
+				watchlist.ValidatorAddress, yesterday, yesterday.AddDate(0, 0, 1)).
+			Distinct("delegator_address").
+			Pluck("delegator_address", &delegatorAddresses).Error; err != nil {
 			tx.Rollback()
 			return err
 		}
 
-		// Create or update daily record
-		if existingDaily.ID == 0 {
-			dailyRecord := models.DailyDelegation{
-				WatchlistID:      watchlist.ID,
-				ValidatorAddress: watchlist.ValidatorAddress,
-				DelegatorAddress: watchlist.DelegatorAddress,
-				TotalDelegation:  latestDelegation.DelegationAmount,
-				Date:             yesterday,
+		log.Printf("Found %d delegators for validator %s", len(delegatorAddresses), watchlist.ValidatorAddress)
+
+		// Process each delegator for this validator
+		for _, delegatorAddr := range delegatorAddresses {
+			var latestDelegation models.HourlyDelegation
+
+			// Find the latest hourly record for this validator-delegator pair
+			if err := tx.Model(&models.HourlyDelegation{}).
+				Where("validator_address = ? AND delegator_address = ? AND timestamp >= ? AND timestamp < ?",
+					watchlist.ValidatorAddress, delegatorAddr, yesterday, yesterday.AddDate(0, 0, 1)).
+				Order("timestamp DESC").
+				Limit(1).
+				First(&latestDelegation).Error; err != nil {
+				if err.Error() != "record not found" {
+					log.Printf("Error querying hourly delegation: %v", err)
+					tx.Rollback()
+					return err
+				}
+				continue // No data for this delegator yesterday
 			}
-			if err := tx.Create(&dailyRecord).Error; err != nil {
+
+			log.Printf("Found latest delegation for %s -> %s: %d tokens",
+				watchlist.ValidatorAddress, delegatorAddr, latestDelegation.DelegationAmount)
+
+			// Check if daily record already exists
+			var existingDaily models.DailyDelegation
+			err := tx.Where("validator_address = ? AND delegator_address = ? AND date = ?",
+				watchlist.ValidatorAddress, delegatorAddr, yesterday).
+				First(&existingDaily).Error
+
+			if err != nil && err.Error() != "record not found" {
 				tx.Rollback()
 				return err
 			}
-		} else {
-			existingDaily.TotalDelegation = latestDelegation.DelegationAmount
-			if err := tx.Save(&existingDaily).Error; err != nil {
-				tx.Rollback()
-				return err
+
+			// Create or update daily record
+			if existingDaily.ID == 0 {
+				dailyRecord := models.DailyDelegation{
+					WatchlistID:      watchlist.ID,
+					ValidatorAddress: watchlist.ValidatorAddress,
+					DelegatorAddress: delegatorAddr, // Include delegator address
+					TotalDelegation:  latestDelegation.DelegationAmount,
+					TotalShares:      latestDelegation.Shares,
+					Date:             yesterday,
+				}
+				if err := tx.Create(&dailyRecord).Error; err != nil {
+					log.Printf("❌ Error creating daily delegation record: %v", err)
+					tx.Rollback()
+					return err
+				}
+				log.Printf("✅ Created new daily record for %s -> %s",
+					watchlist.ValidatorAddress, delegatorAddr)
+			} else {
+				existingDaily.TotalDelegation = latestDelegation.DelegationAmount
+				existingDaily.TotalShares = latestDelegation.Shares
+				if err := tx.Save(&existingDaily).Error; err != nil {
+					log.Printf("❌ Error updating daily delegation record: %v", err)
+					tx.Rollback()
+					return err
+				}
+				log.Printf("✅ Updated daily record for %s -> %s",
+					watchlist.ValidatorAddress, delegatorAddr)
 			}
 		}
 	}
 
+	log.Println("⭐ Daily aggregation transaction completed, committing changes...")
 	return tx.Commit().Error
 }
 
 // schedules daily aggregation to run at midnight
 func ScheduleDailyAggregation() {
+	// Run aggregation immediately at startup
+	log.Println("🚀 Running initial daily aggregation...")
+	if err := AggregateDailyDelegations(); err != nil {
+		log.Printf("❌ Initial daily aggregation failed: %v", err)
+	} else {
+		log.Println("✅ Initial daily aggregation completed successfully")
+	}
+
 	// Calculate time until next midnight
 	now := time.Now()
 	midnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 5, 0, 0, now.Location())
 	duration := midnight.Sub(now)
 
-	log.Printf("🕒 Scheduling daily aggregation to run in %v", duration)
+	log.Printf("🕒 Scheduling next daily aggregation to run in %v", duration)
 
-	// Initial wait until midnight
-	timer := time.NewTimer(duration)
-	<-timer.C
+	// Schedule the next run at midnight because for the first init
+	go func() {
+		time.Sleep(duration)
 
-	// Run the first aggregation
-	if err := AggregateDailyDelegations(); err != nil {
-		log.Printf("❌ Daily aggregation failed: %v", err)
-	} else {
-		log.Println("✅ Daily aggregation completed successfully")
-	}
-
-	// Then run every 24 hours
-	ticker := time.NewTicker(24 * time.Hour)
-	defer ticker.Stop()
-
-	for range ticker.C {
+		log.Println("⏰ Running scheduled midnight aggregation...")
 		if err := AggregateDailyDelegations(); err != nil {
-			log.Printf("❌ Daily aggregation failed: %v", err)
+			log.Printf("❌ Midnight aggregation failed: %v", err)
 		} else {
-			log.Println("✅ Daily aggregation completed successfully")
+			log.Println("✅ Midnight aggregation completed successfully")
 		}
-	}
+
+		// Then for every 24 hours
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			log.Println("⏰ Running daily scheduled aggregation...")
+			if err := AggregateDailyDelegations(); err != nil {
+				log.Printf("❌ Daily aggregation failed: %v", err)
+			} else {
+				log.Println("✅ Daily aggregation completed successfully")
+			}
+		}
+	}()
 }

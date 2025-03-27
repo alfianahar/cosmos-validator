@@ -4,5 +4,5 @@ package models
 type Watchlist struct {
 	ID               uint   `gorm:"primaryKey" json:"id"`
 	ValidatorAddress string `gorm:"index" json:"validator_address"`
-	DelegatorAddress string `gorm:"index" json:"delegator_address"`
+	ValidatorName    string `gorm:"type:varchar(100)" json:"validator_name"`
 }

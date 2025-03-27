@@ -9,8 +9,8 @@ import (
 // adds a new entry to the watchlist
 func AddWatchlistEntry(entry dto.WatchlistEntry) error {
 	watchlistItem := models.Watchlist{
+		ValidatorName:    entry.ValidatorName,
 		ValidatorAddress: entry.ValidatorAddress,
-		DelegatorAddress: entry.DelegatorAddress,
 	}
 
 	return db.DB.Create(&watchlistItem).Error
@@ -28,8 +28,8 @@ func GetWatchlist() ([]dto.WatchlistEntry, error) {
 	for i, item := range watchlistItems {
 		entries[i] = dto.WatchlistEntry{
 			ID:               int(item.ID),
+			ValidatorName:    item.ValidatorName,
 			ValidatorAddress: item.ValidatorAddress,
-			DelegatorAddress: item.DelegatorAddress,
 		}
 	}
 

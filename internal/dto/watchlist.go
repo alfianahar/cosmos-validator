@@ -4,5 +4,5 @@ package dto
 type WatchlistEntry struct {
 	ID               int    `json:"id"`
 	ValidatorAddress string `json:"validator_address"`
-	DelegatorAddress string `json:"delegator_address"`
+	ValidatorName    string `json:"validator_name"`
 }

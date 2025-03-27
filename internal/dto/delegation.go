@@ -9,6 +9,7 @@ type HourlyDelegationDTO struct {
 	DelegatorAddress string    `json:"delegator_address"`
 	DelegationAmount int64     `json:"delegation_amount"`
 	ChangeAmount     int64     `json:"change_amount"`
+	Shares           float64   `json:"shares,omitempty"`
 	Timestamp        time.Time `json:"timestamp"`
 }
 
@@ -18,12 +19,12 @@ type DailyDelegationDTO struct {
 	ValidatorAddress string    `json:"validator_address"`
 	DelegatorAddress string    `json:"delegator_address"`
 	TotalDelegation  int64     `json:"total_delegation"`
+	TotalShares      float64   `json:"total_shares,omitempty"`
 	Date             time.Time `json:"date"`
 }
 
 // standardizes the API response format for all delegation endpoints
 type DelegationResponse struct {
-	Status     string      `json:"status"`
 	Message    string      `json:"message,omitempty"`
 	Data       interface{} `json:"data"`
 	Pagination Pagination  `json:"pagination,omitempty"`

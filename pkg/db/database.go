@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -18,6 +19,15 @@ var DB *gorm.DB
 
 // establishes a connection to the database with optimized settings
 func ConnectDB() {
+	// Close any existing connection first
+	if DB != nil {
+		sqlDB, err := DB.DB()
+		if err == nil {
+			sqlDB.Close()
+		}
+		DB = nil
+	}
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Warning: No .env file found")
@@ -34,8 +44,9 @@ func ConnectDB() {
 		},
 	)
 
+	// Add connection parameters to fix the cached plan issue
 	dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s application_name=cosmos_validator_app",
 		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"), os.Getenv("SSLMODE"),
 	)
 
@@ -43,10 +54,16 @@ func ConnectDB() {
 	database, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger:                 newLogger,
 		SkipDefaultTransaction: true,
-		PrepareStmt:            true,
+		PrepareStmt:            false, // Disable prepared statements to avoid caching issues
 	})
 	if err != nil {
 		log.Fatal("❌ Failed to connect to database:", err)
+	}
+
+	// Execute DISCARD ALL to clear any statement cache
+	if err := database.Exec("DISCARD ALL").Error; err != nil {
+		log.Printf("⚠️ Warning: Failed to discard cached plans: %v", err)
+		// Continue anyway as this is just a precaution
 	}
 
 	// Configure connection pool settings
@@ -56,20 +73,53 @@ func ConnectDB() {
 	}
 
 	// Set connection pool parameters for optimal performance
-	sqlDB.SetMaxIdleConns(2)                // Maximum number of idle connections
-	sqlDB.SetMaxOpenConns(10)               // Maximum number of open connections
+	sqlDB.SetMaxIdleConns(10)               // Maximum number of idle connections
+	sqlDB.SetMaxOpenConns(50)               // Maximum number of open connections
 	sqlDB.SetConnMaxLifetime(1 * time.Hour) // Maximum lifetime of a connection
 
 	DB = database
 
-	// Auto-migrate tables with indices for better query performance
-	err = DB.AutoMigrate(
+	// First migrate the migration history table itself
+	if err := DB.AutoMigrate(&models.MigrationHistory{}); err != nil {
+		log.Fatal("❌ Failed to migrate migration history table: ", err)
+	}
+
+	// Prepare to track models being migrated
+	modelsToMigrate := []interface{}{
 		&models.HourlyDelegation{},
 		&models.DailyDelegation{},
 		&models.Watchlist{},
-	)
+	}
+
+	// Get model names for logging
+	modelNames := make([]string, len(modelsToMigrate))
+	for i, model := range modelsToMigrate {
+		modelNames[i] = fmt.Sprintf("%T", model)
+	}
+
+	// Perform the migration
+	migrationRecord := models.MigrationHistory{
+		Models: strings.Join(modelNames, ", "),
+		Status: "in_progress",
+	}
+
+	// Save initial migration record
+	if err := DB.Create(&migrationRecord).Error; err != nil {
+		log.Printf("⚠️ Failed to create migration history record: %v", err)
+	}
+
+	// Auto-migrate tables with indices for better query performance
+	err = DB.AutoMigrate(modelsToMigrate...)
+
+	// Update migration record with result
 	if err != nil {
+		migrationRecord.Status = "error"
+		migrationRecord.ErrorMessage = err.Error()
+		DB.Save(&migrationRecord)
 		log.Fatal("❌ Failed to migrate database:", err)
+	} else {
+		migrationRecord.Status = "success"
+		DB.Save(&migrationRecord)
 	}
 
 	// Verify connection
@@ -77,13 +127,13 @@ func ConnectDB() {
 	defer cancel()
 
 	if err := sqlDB.PingContext(ctx); err != nil {
-		log.Fatal("❌ Database connection verification failed:", err)
+		log.Fatal("❌ Database connection verification failed: ", err)
 	}
 
 	log.Println("✅ Database connected and migrated successfully!")
 }
 
-// WithTransaction runs a function within a transaction
+// runs a function within a transaction
 func WithTransaction(fn func(tx *gorm.DB) error) error {
 	tx := DB.Begin()
 	if tx.Error != nil {
@@ -103,4 +153,18 @@ func WithTransaction(fn func(tx *gorm.DB) error) error {
 	}
 
 	return tx.Commit().Error
+}
+
+// returns the migration history records
+func GetMigrationHistory(limit int) ([]models.MigrationHistory, error) {
+	var history []models.MigrationHistory
+
+	result := DB.Order("migrated_at DESC")
+
+	if limit > 0 {
+		result = result.Limit(limit)
+	}
+
+	err := result.Find(&history).Error
+	return history, err
 }
