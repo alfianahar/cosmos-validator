@@ -135,7 +135,7 @@ func processEntryData(entry dto.WatchlistEntry, result DelegationResponse, valid
 				continue
 			}
 
-			// Parse shares for additional data (can be used for future analytics)
+			// Parse shares for additional data
 			var sharesFloat float64
 			if delegation.Delegation.Shares != "" {
 				sharesFloat, err = strconv.ParseFloat(delegation.Delegation.Shares, 64)
@@ -144,11 +144,6 @@ func processEntryData(entry dto.WatchlistEntry, result DelegationResponse, valid
 					// Continue anyway since this is optional data
 				}
 			}
-
-			// Skip zero-amount delegations if desired (can be configurable)
-			// if delegationAmount == 0 {
-			//    continue
-			// }
 
 			// Fetch the last recorded amount to calculate the change
 			var lastRecord models.HourlyDelegation

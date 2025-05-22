@@ -67,3 +67,5 @@ tmp/
 # Local configuration files that might contain sensitive data
 config.local.yaml
 config.local.json
+
+*.txt
